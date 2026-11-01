@@ -166,3 +166,59 @@ e o licenciamento de 2021 é da estação física. Precisa confirmação antes d
 3. [x] Documentar (este arquivo)
 4. [ ] Decidir o produto: painel de dados · informativo editorial · cartilha
 5. [ ] Localizar a base de Rádio do Cidadão em formato de estações
+
+---
+
+## 8. Lição registrada em 01/11/2026 — o teste documentado que não existia
+
+**O que aconteceu.** O `dados.js` publicado no v1.0 pareava o município com a
+UF da entidade em vez da UF da estação. Quando o titular mora num estado e tem
+estação noutro, o par saía impossível. Medido no arquivo publicado: **599
+entradas erradas em 2.890** — "São Paulo/MG", "Curitiba/SP", "Aracaju/RS",
+"Aracaju/BA", "Aracaju/DF". O app funcionava sem erro, sem aviso, mostrando
+dado falso.
+
+**Por que o bug passou.** A docstring do `gerar_dados_js.py` documentava desde
+a primeira versão:
+
+    python3 scripts/gerar_dados_js.py --check    # só confere o existente
+
+Mas não havia uma linha de código que lesse argumento algum. O `main()` não
+recebia `argv`. O comando existia na documentação e não existia no programa.
+
+**O caminho que teria pegado.** Com o `--check` implementado, a primeira
+execução acusaria três coisas de uma vez: hash do CSV, contagem de registros e
+coerência dos índices de município. A checagem de coerência é justamente a que
+encontra UF inexistente. Ele teria falhado antes de o arquivo ir para o ar.
+
+**Quando ficou visível.** Só quando três modelos independentes leram o código
+e um deles (deepseek-v4-pro) rastreou o pareamento até a linha do gerador.
+
+**Regra que fica.** Documentação não é teste. Um comando que aparece na
+docstring e não no código é pior que um comando ausente: cria confiança falsa
+em quem mantém o projeto. Toda flag documentada tem de existir, e todo teste
+que promete pegar erro de dado tem de rodar antes da publicação, não depois.
+
+**Corolário.** Ao revisar código próprio, ler a docstring e conferir se cada
+promessa tem implementação é o teste mais barato que existe — e o que eu não
+fiz.
+
+---
+
+## 9. Dado sujo confirmado na coluna "UF da Estação"
+
+Na correção do item anterior apareceu lixo que não estava documentado.
+A coluna "UF da Estação" contém, além das 27 siglas:
+
+| Valor | Ocorrências | Tratamento |
+|---|---|---|
+| `N/A` | 38.552 | estação móvel, sem município — correto |
+| `N/I` | 149 | não informado — correto |
+| `Pr` | 2 | normalizado para `PR` |
+| `mg` | 1 | normalizado para `MG` |
+| `rj` | 1 | normalizado para `RJ` |
+| `BAHIA` | 1 | normalizado para `BA` |
+
+O `normalizar_uf()` do gerador aceita sigla em qualquer caixa e nome de estado
+por extenso. O que não reconhece (`N/A`, `N/I`, vazio) fica fora do dicionário,
+porque não é UF — não se inventa estado para preencher campo.
