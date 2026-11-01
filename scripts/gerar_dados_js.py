@@ -36,6 +36,9 @@ import sys
 import unicodedata
 from datetime import datetime, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from frequencias import parse as freq_parse, shift_do_usuario  # noqa: E402
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSV = os.path.join(BASE, "dados", "Estacoes_Radioamador.csv")
 WEB = os.path.join(BASE, "web")
@@ -127,8 +130,10 @@ def checar_gerado(argv):
         r = subprocess.run(
             ["node", "-e",
              'const d=require(process.argv[1]);'
+             'const r=d.reg||[];'
+             'let cf=0;for(let i=0;i<r.length;i++){if(r[i][14])cf++;}'
              'console.log(JSON.stringify({meta:d.meta,'
-             'mun:d.mun,ufs:d.ufs,total:(d.reg||[]).length}));',
+             'mun:d.mun,ufs:d.ufs,total:r.length,com_freq:cf,schema:d.meta&&d.meta.schema}));',
              caminho_tmp],
             capture_output=True, text=True, timeout=120)
     finally:
@@ -180,6 +185,26 @@ def checar_gerado(argv):
         else:
             print("OK   todos os municipios apontam para UF existente")
 
+    # checagem nova (schema 2): repetidoras com frequencia valida
+    com_freq = dados.get("com_freq", 0)
+    schema = dados.get("schema")
+    print(f"schema do dados.js: {schema}")
+    if schema != 2:
+        print(f"DIVERGE  schema {schema} != 2 (campo de frequencia ausente)")
+        falhas += 1
+    with open(CSV, encoding="utf-8-sig", errors="replace", newline="") as f:
+        reps = 0
+        for row in csv.DictReader(f, delimiter=";"):
+            if (row.get("Tipo de Estação") or "").strip() == "Repetidora":
+                reps += 1
+    print(f"repetidoras no CSV: {reps:,} | com frequencia no dados.js: {com_freq:,}")
+    if com_freq < reps * 0.98:
+        print(f"DIVERGE  apenas {com_freq} de {reps} repetidoras tem frequencia "
+              f"(esperado ao menos 98%)")
+        falhas += 1
+    else:
+        print(f"OK   {com_freq / reps * 100:.1f}% das repetidoras com frequencia")
+
     if falhas:
         print(f"\nRESULTADO: {falhas} divergencia(s). Rode sem --check para regenerar.")
         return 1
@@ -221,6 +246,18 @@ def main(argv):
             chave_mun = ""
         else:
             chave_mun = mun + SEP + uf_estacao
+        # frequencias: parseia e compacta em texto antes de guardar
+        _f = freq_parse(c(r, "Frequências de Operação da Estação"))
+        partes_f = []
+        for _c in _f["conjuntos"]:
+            partes_f.append(";".join([
+                ("%.3f" % _c["tx"]).replace(",", "."),
+                ("%.3f" % _c["rx"]).replace(",", "."),
+                _c["faixa"],
+                _c["procedencia"],
+            ]))
+        celula_freq = " | ".join(partes_f)
+
         registros.append([
             c(r, "Indicativo").upper(),
             c(r, "Nome da Entidade"),
@@ -236,6 +273,11 @@ def main(argv):
             c(r, "Data de Validade da Estação"),
             add(idx_status, status, c(r, "Status da Validade")),
             c(r, "Número da Estação"),
+            # NOVO (01/11/2026): frequencias de operacao.
+            # Guardadas como texto compacto "tx|rx|faixa|proc ; tx|rx|faixa|proc"
+            # Somente nas repetidoras ha dado util (1.233 de 1.241); nas demais
+            # fica vazio, e o campo vazio nao ocupa espaco no JSON.
+            celula_freq,
         ])
 
     meta = {
@@ -245,10 +287,11 @@ def main(argv):
         "fonte_orgao": "Anatel - Agencia Nacional de Telecomunicacoes",
         "csv_sha256": sh256(CSV),
         "total": len(registros),
-        "schema": 1,
+        "schema": 2,
         "campos": ["indicativo", "nome", "doc", "tipo_doc", "fistel",
                    "tipo", "classe", "municipio", "uf", "dt_primeiro",
-                   "dt_ultimo", "dt_validade", "status", "num_estacao"],
+                   "dt_ultimo", "dt_validade", "status", "num_estacao",
+                   "freq"],
     }
 
     print(f"  {len(ufs)} UFs, {len(municipios):,} municipios, "
