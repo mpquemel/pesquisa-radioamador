@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radioamadores do Brasil — Consulta de estações da Anatel</title>
+<meta name="author" content="Melhym Pereira Quemel (PY1MEL)">
+<meta name="description" content="Consulta offline das estações de radioamador licenciadas pela Anatel. Funciona sem internet, acessível a leitores de tela.">
+<style>
+  :root{
+    --bg:#ffffff; --fg:#111111; --muted:#4a4a4a; --borda:#767676;
+    --destaque:#0b3d91; --fundo-caixa:#f4f6fa; --aviso:#7a2e00;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#121212; --fg:#f2f2f2; --muted:#c9c9c9; --borda:#9a9a9a;
+           --destaque:#8ab4f8; --fundo-caixa:#1e1e1e; --aviso:#ffb37a; }
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:1.125rem; line-height:1.6;
+  }
+  .wrap{ max-width:58rem; margin:0 auto; padding:1rem 1.25rem 4rem; }
+  a{ color:var(--destaque); }
+  a:focus-visible, button:focus-visible, input:focus-visible,
+  select:focus-visible, summary:focus-visible{
+    outline:3px solid var(--destaque); outline-offset:2px;
+  }
+  header.cabecalho{ border-bottom:2px solid var(--borda); padding-bottom:1rem; margin-bottom:1.5rem; }
+  header.cabecalho p{ margin:.25rem 0; color:var(--muted); }
+  nav.principal ul{ list-style:none; padding:0; margin:1rem 0 0; display:flex; flex-wrap:wrap; gap:.5rem; }
+  nav.principal a{
+    display:inline-block; padding:.55rem .9rem; border:2px solid var(--borda);
+    border-radius:.35rem; text-decoration:none; color:var(--fg); font-weight:600;
+  }
+  nav.principal a:hover, nav.principal a:focus{ background:var(--fundo-caixa); }
+  .pular{
+    position:absolute; left:-9999px; top:0; background:var(--fundo-caixa);
+    padding:.75rem 1rem; border:2px solid var(--destaque);
+  }
+  .pular:focus{ left:.5rem; top:.5rem; z-index:99; }
+  fieldset{ border:2px solid var(--borda); border-radius:.4rem; padding:1rem; margin:0 0 1.25rem; }
+  legend{ font-weight:700; padding:0 .4rem; }
+  .campo{ margin:0 0 1rem; }
+  .campo label{ display:block; font-weight:600; margin-bottom:.3rem; }
+  .ajuda{ display:block; color:var(--muted); font-size:.95rem; font-weight:400; margin-top:.2rem; }
+  input[type=text], input[type=search], select{
+    width:100%; max-width:32rem; padding:.6rem .7rem; font-size:1.0625rem;
+    color:var(--fg); background:var(--bg);
+    border:2px solid var(--borda); border-radius:.3rem;
+  }
+  .linha-campos{ display:flex; flex-wrap:wrap; gap:1rem; }
+  .linha-campos > .campo{ flex:1 1 14rem; margin:0; }
+  .botoes{ display:flex; flex-wrap:wrap; gap:.75rem; margin-top:.5rem; }
+  button{
+    font:inherit; font-weight:700; padding:.7rem 1.3rem; min-height:2.75rem;
+    border-radius:.35rem; border:2px solid var(--destaque);
+    background:var(--destaque); color:#fff; cursor:pointer;
+  }
+  button.secundario{ background:transparent; color:var(--destaque); }
+  button.secundario:hover{ background:var(--fundo-caixa); }
+  button:disabled{ opacity:.55; cursor:not-allowed; }
+  .status{
+    border:2px solid var(--borda); background:var(--fundo-caixa);
+    padding:.8rem 1rem; border-radius:.35rem; margin:1rem 0;
+  }
+  .status.erro{ border-color:var(--aviso); color:var(--aviso); }
+  .resultado{
+    border:1px solid var(--borda); border-radius:.4rem;
+    padding:1rem 1.15rem; margin:0 0 1rem;
+  }
+  .resultado h3{ margin:0 0 .6rem; font-size:1.15rem; }
+  dl{ margin:0; display:grid; grid-template-columns:1fr; gap:.15rem 1rem; }
+  @media (min-width:40rem){ dl{ grid-template-columns:13rem 1fr; } }
+  dt{ font-weight:700; }
+  dd{ margin:0 0 .35rem; }
+  .fistel{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:1.2rem; letter-spacing:.03em; font-weight:700;
+  }
+  .vazio{ font-style:italic; color:var(--muted); }
+  details{ border:1px solid var(--borda); border-radius:.4rem; padding:.75rem 1rem; margin:0 0 1rem; }
+  summary{ font-weight:700; cursor:pointer; padding:.35rem 0; }
+  h2{ border-bottom:2px solid var(--borda); padding-bottom:.4rem; margin-top:2.5rem; }
+  .oculto{ display:none !important; }
+  footer.rodape{ border-top:2px solid var(--borda); margin-top:3rem; padding-top:1rem; color:var(--muted); }
+  .aviso-legal{ background:var(--fundo-caixa); border-left:6px solid var(--destaque); padding: .9rem 1rem; border-radius:.3rem; }
+  table{ border-collapse:collapse; width:100%; margin:1rem 0; }
+  caption{ text-align:left; font-weight:700; padding-bottom:.5rem; }
+  th,td{ border:1px solid var(--borda); padding:.5rem .6rem; text-align:left; vertical-align:top; }
+  th{ background:var(--fundo-caixa); }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+<a class="pular" href="#conteudo">Ir para o conteúdo principal</a>
+
+<div class="wrap">
+<header class="cabecalho">
+  <h1>Radioamadores do Brasil</h1>
+  <p>Consulta das estações de radioamador licenciadas pela Anatel.</p>
+  <p>Base de <strong id="total-base">carregando…</strong>. Funciona sem internet.</p>
+  <nav class="principal" aria-label="Seções do aplicativo">
+    <ul>
+      <li><a href="#busca">Consultar</a></li>
+      <li><a href="#manual">Manual de uso</a></li>
+      <li><a href="#legislacao">Legislação</a></li>
+      <li><a href="#atualizar">Atualizar base</a></li>
+      <li><a href="#sobre">Sobre e créditos</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="conteudo">
+
+<!-- =================== BUSCA =================== -->
+<section id="busca" aria-labelledby="titulo-busca">
+  <h2 id="titulo-busca">Consultar estações</h2>
+
+  <p>Preencha o que souber. Deixe em branco o que não importa — os campos se somam.</p>
+
+  <form id="form-busca" novalidate>
+    <fieldset>
+      <legend>Quem você procura</legend>
+
+      <div class="campo">
+        <label for="f-indicativo">Indicativo</label>
+        <input type="text" id="f-indicativo" name="indicativo"
+               autocomplete="off" spellcheck="false" maxlength="12"
+               aria-describedby="aj-indicativo">
+        <span class="ajuda" id="aj-indicativo">Exemplo: PY1MEL. Aceita minúsculas.</span>
+      </div>
+
+      <div class="campo">
+        <label for="f-nome">Nome do titular</label>
+        <input type="text" id="f-nome" name="nome"
+               autocomplete="off" aria-describedby="aj-nome">
+        <span class="ajuda" id="aj-nome">Pode ser parte do nome. Acento é opcional.</span>
+      </div>
+
+      <div class="campo">
+        <label for="f-fistel">Fistel</label>
+        <input type="text" id="f-fistel" name="fistel"
+               inputmode="numeric" autocomplete="off"
+               aria-describedby="aj-fistel">
+        <span class="ajuda" id="aj-fistel">O número grande usado para emitir o boleto anual.</span>
+      </div>
+
+      <div class="campo">
+        <label for="f-doc">Documento (parte visível)</label>
+        <input type="text" id="f-doc" name="doc"
+               inputmode="numeric" autocomplete="off"
+               aria-describedby="aj-doc">
+        <span class="ajuda" id="aj-doc">
+          A Anatel publica o CPF ou CNPJ mascarado, mostrando só 5 dígitos.
+          Digite esses 5 dígitos. O CPF completo não é pesquisável.
+        </span>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Onde e como</legend>
+      <div class="linha-campos">
+        <div class="campo">
+          <label for="f-uf">Estado do titular</label>
+          <select id="f-uf" name="uf">
+            <option value="">Todos os estados</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="f-municipio">Município da estação</label>
+          <input type="text" id="f-municipio" name="municipio"
+                 autocomplete="off" aria-describedby="aj-municipio">
+          <span class="ajuda" id="aj-municipio">Estação móvel não tem município.</span>
+        </div>
+      </div>
+
+      <div class="linha-campos">
+        <div class="campo">
+          <label for="f-tipo">Tipo de estação</label>
+          <select id="f-tipo" name="tipo">
+            <option value="">Todos os tipos</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="f-classe">Classe</label>
+          <select id="f-classe" name="classe">
+            <option value="">Todas as classes</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="f-status">Situação da validade</label>
+          <select id="f-status" name="status">
+            <option value="">Todas as situações</option>
+          </select>
+        </div>
+      </div>
+    </fieldset>
+
+    <div class="botoes">
+      <button type="submit" id="btn-buscar">Buscar</button>
+      <button type="button" id="btn-limpar" class="secundario">Limpar filtros</button>
+    </div>
+  </form>
+
+  <p role="status" aria-live="polite" id="anuncio" class="status">
+    Pronto para buscar.
+  </p>
+
+  <div id="area-resultados" class="oculto">
+    <h2 id="titulo-resultados" tabindex="-1">Resultados</h2>
+    <div class="botoes" id="acoes-resultados">
+      <button type="button" id="btn-exportar" class="secundario">Exportar resultados em CSV</button>
+      <button type="button" id="btn-relatorio" class="secundario">Gerar relatório resumido</button>
+    </div>
+    <div id="lista-resultados"></div>
+  </div>
+</section>
+
+<!-- =================== MANUAL =================== -->
+<section id="manual" aria-labelledby="titulo-manual">
+  <h2 id="titulo-manual">Manual de uso</h2>
+
+  <details open>
+    <summary>Como abrir e o que é este programa</summary>
+    <p>
+      Este é um único aplicativo, que roda dentro do seu navegador, sem instalar
+      nada e sem usar internet. Ele lê a base pública de estações de radioamador
+      publicada pela Anatel e permite consultá-la.
+    </p>
+    <p>
+      Para abrir: dê dois cliques no arquivo <strong>index.html</strong>.
+      O navegador abre o programa. A partir daí, tudo funciona offline.
+    </p>
+    <p>
+      Funciona no Windows, no Linux, no Mac, no Android e no iPhone.
+      Não precisa de senha, cadastro nem conexão.
+    </p>
+  </details>
+
+  <details>
+    <summary>Como achar o Fistel para pagar o boleto anual</summary>
+    <ol>
+      <li>No campo <strong>Indicativo</strong>, digite o seu (por exemplo, PY1MEL).</li>
+      <li>Pressione <strong>Enter</strong> ou acione o botão <strong>Buscar</strong>.</li>
+      <li>
+        Vão aparecer os seus registros, um para cada estação. Localize a linha
+        <strong>Fistel</strong> dentro do registro que você precisa.
+      </li>
+      <li>Selecione o número e copie.</li>
+    </ol>
+    <p>
+      Atenção: quem tem estação fixa e móvel aparece duas vezes, e o Fistel
+      pode ser o mesmo nas duas. O que diferencia uma da outra é o
+      <strong>Número da estação</strong>.
+    </p>
+  </details>
+
+  <details>
+    <summary>Como buscar por nome, cidade ou estado</summary>
+    <p>
+      Use os campos que precisar e deixe os outros em branco. Os filtros se somam:
+      se você preencher <em>Nome</em> e <em>Estado</em>, o programa traz somente
+      quem atende aos dois.
+    </p>
+    <p>
+      O nome pode ser digitado parcialmente e sem acento. Quem digita
+      <em>jose</em> encontra <em>JOSÉ</em> e <em>JOSE</em>.
+    </p>
+  </details>
+
+  <details>
+    <summary>Por que não consigo buscar pelo CPF completo</summary>
+    <p>
+      Porque a Anatel não publica o CPF inteiro. A base traz o documento
+      mascarado, mostrando apenas cinco dígitos, algo como
+      <strong>&#42;&#42;&#42;65935&#42;&#42;</strong>.
+    </p>
+    <p>
+      Você pode buscar pelos cinco dígitos visíveis. O número completo
+      não existe nesta base, e nenhum programa poderia encontrá-lo.
+    </p>
+  </details>
+
+  <details>
+    <summary>Usando com leitor de tela</summary>
+    <p>
+      Todo o aplicativo foi construído com marcação semântica, de modo que
+      o NVDA, o Narrador, o TalkBack e o VoiceOver anunciem corretamente
+      títulos, campos, rótulos e resultados.
+    </p>
+    <ul>
+      <li>Navegue por títulos com as teclas de atalho do leitor (no NVDA, tecla H).</li>
+      <li>Navegue por campos de formulário com a tecla F.</li>
+      <li>Navegue por botões com a tecla B.</li>
+      <li>Após cada busca, o resultado é anunciado automaticamente.</li>
+    </ul>
+    <p>
+      Nada exige o uso do mouse.
+    </p>
+  </details>
+
+  <details>
+    <summary>O que significa cada campo</summary>
+    <dl>
+      <dt>Indicativo</dt>
+      <dd>O código de chamada do titular, como PY1MEL.</dd>
+      <dt>Classe</dt>
+      <dd>
+        Categoria do radioamador, que define faixas e potência. Classe A é a
+        mais ampla, C a de entrada.
+      </dd>
+      <dt>Tipo de estação</dt>
+      <dd>
+        Fixa, quando instalada em local fixo; Móvel, quando usada em movimento;
+        Repetidora, que retransmite sinais; Terrena, de controle de satélite.
+      </dd>
+      <dt>Fistel</dt>
+      <dd>Número de identificação do serviço, necessário para a taxa anual.</dd>
+      <dt>Situação da validade</dt>
+      <dd>
+        <strong>Ativa</strong> significa licença válida. <strong>Vencida</strong>
+        significa vencida. <strong>N/I</strong> significa não informado: a Anatel
+        não registra a validade para aquela estação. Não é o mesmo que vencida.
+      </dd>
+      <dt>Número da estação</dt>
+      <dd>A identificação única de cada estação. É o que separa a fixa da móvel.</dd>
+    </dl>
+  </details>
+</section>
+
+<!-- =================== LEGISLACAO =================== -->
+<section id="legislacao" aria-labelledby="titulo-legislacao">
+  <h2 id="titulo-legislacao">Legislação</h2>
+  <p>As normas que regem o radioamadorismo no Brasil.</p>
+
+  <table>
+    <caption>Principais atos normativos</caption>
+    <thead>
+      <tr><th scope="col">Norma</th><th scope="col">Assunto</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Lei nº 9.472/1997</td>
+        <td>Lei Geral de Telecomunicações. Base legal da outorga, do licenciamento e da competência da Anatel.</td>
+      </tr>
+      <tr>
+        <td>Resolução Anatel nº 719/2020</td>
+        <td>Regulamento Geral de Licenciamento. Trata do licenciamento das estações, inclusive as de radioamador.</td>
+      </tr>
+      <tr>
+        <td>Resolução Anatel nº 777/2025</td>
+        <td>
+          Estabelece os tipos de estação de radioamador (art. 10-B) e quem pode ser
+          titular de repetidora (art. 12, § 3º). Desde esta norma, pessoa física pode
+          ser titular de repetidora como Classe A ou B.
+        </td>
+      </tr>
+      <tr>
+        <td>Resolução Anatel nº 449/2006</td>
+        <td>Regulamento anterior do Serviço de Radioamador. Seu art. 44 exigia Classe A para repetidora e foi superado pela Resolução 777/2025.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="repetidora">O que a lei exige de uma repetidora</h3>
+  <p>
+    O artigo 12, § 3º, do Regulamento Geral de Licenciamento, na redação dada
+    pela Resolução 777/2025, admite como titular da licença de estação repetidora:
+  </p>
+  <ul>
+    <li>titular do COER Classe A;</li>
+    <li>titular do COER Classe A ou B;</li>
+    <li>associações de radioamadores;</li>
+    <li>universidades e escolas;</li>
+    <li>entidades de defesa civil;</li>
+    <li>associações do Movimento Escoteiro e do Movimento Bandeirante.</li>
+  </ul>
+  <p>
+    Classe C não consta da lista. E quando o titular é pessoa jurídica, o pedido
+    deve indicar um radioamador Classe A responsável pela operação (§ 4º).
+  </p>
+  <p>
+    Além disso, o art. 10-B, § 3º, determina que a repetidora entre em
+    funcionamento em até um ano após o licenciamento, sob pena de revogação, e o
+    § 4º revoga a licença de repetidora inativa por mais de um ano.
+  </p>
+
+  <h3>Fontes oficiais</h3>
+  <ul>
+    <li><a href="https://www.gov.br/anatel/pt-br/regulado/outorga/radioamador" target="_blank" rel="noopener noreferrer">Página do Serviço Radioamador na Anatel</a></li>
+    <li><a href="https://informacoes.anatel.gov.br/legislacao" target="_blank" rel="noopener noreferrer">Portal de Legislação de Telecomunicações</a></li>
+    <li><a href="https://www.planalto.gov.br/ccivil_03/leis/l9472.htm" target="_blank" rel="noopener noreferrer">Lei Geral de Telecomunicações no Planalto</a></li>
+  </ul>
+  <p class="aviso-legal">
+    Os resumos desta seção são orientativos. Antes de citar em petição ou
+    documento, confira o texto oficial no Portal de Legislação da Anatel.
+  </p>
+</section>
+
+<!-- =================== ATUALIZAR =================== -->
+<section id="atualizar" aria-labelledby="titulo-atualizar">
+  <h2 id="titulo-atualizar">Atualizar a base</h2>
+
+  <p>
+    A base instalada foi gerada em <strong id="data-base">—</strong>.
+    Se você recebeu este aplicativo há muito tempo, vale conferir se a Anatel
+    publicou dados mais recentes.
+  </p>
+
+  <p role="status" aria-live="polite" id="anuncio-atualizacao" class="status">
+    Nenhuma atualização iniciada.
+  </p>
+
+  <h3>Passo 1 — baixar o arquivo da Anatel</h3>
+  <p>
+    Este botão abre o servidor da Anatel em outra aba. O download do arquivo
+    é grande (cerca de 220 MB) e depende de internet. Não é possível baixá-lo
+    automaticamente de dentro deste programa, por uma restrição de segurança
+    dos navegadores.
+  </p>
+  <p>
+    <a href="https://www.anatel.gov.br/dadosabertos/paineis_de_dados/outorga_e_licenciamento/estacoes_licenciadas.zip"
+       target="_blank" rel="noopener noreferrer">
+      Baixar a base de estações licenciadas da Anatel (abre em nova aba)
+    </a>
+  </p>
+
+  <h3>Passo 2 — apontar o arquivo baixado</h3>
+  <p>
+    Depois de baixar o arquivo <strong>estacoes_licenciadas.zip</strong>,
+    selecione-o aqui. O programa vai ler o arquivo, extrair os dados de
+    radioamador e atualizar a consulta apenas nesta sessão.
+  </p>
+  <div class="campo">
+    <label for="f-arquivo">Arquivo baixado da Anatel</label>
+    <input type="file" id="f-arquivo" accept=".zip" aria-describedby="aj-arquivo">
+    <span class="ajuda" id="aj-arquivo">
+      O arquivo original da Anatel, no formato zip. Nada é enviado para a internet.
+    </span>
+  </div>
+
+  <p id="aviso-persistencia" class="ajuda"></p>
+</section>
+
+<!-- =================== SOBRE =================== -->
+<section id="sobre" aria-labelledby="titulo-sobre">
+  <h2 id="titulo-sobre">Sobre e créditos</h2>
+
+  <h3>Autor</h3>
+  <p>
+    <strong>Melhym Pereira Quemel</strong> — indicativo <strong>PY1MEL</strong>, Classe A.<br>
+    Contato: <a href="mailto:mpquemel@gmail.com">mpquemel@gmail.com</a>
+  </p>
+  <p>
+    Mestre em Direito e graduando em Engenharia de Software. Pesquisa governança
+    algorítmica, integridade da prova digital e acessibilidade.
+  </p>
+
+  <h3>Fonte dos dados</h3>
+  <p>
+    Anatel — Agência Nacional de Telecomunicações. Base de Estações Licenciadas,
+    arquivo <strong>Estacoes_Radioamador.csv</strong>, contido no pacote
+    <strong>estacoes_licenciadas.zip</strong>.
+  </p>
+  <p>
+    Endereço oficial:
+    <a href="https://www.anatel.gov.br/dadosabertos/paineis_de_dados/outorga_e_licenciamento/estacoes_licenciadas.zip"
+       target="_blank" rel="noopener noreferrer">dados abertos da Anatel</a>.
+  </p>
+
+  <h3>Metodologia</h3>
+  <p>
+    Nenhum registro é descartado: todas as linhas do arquivo original compõem a
+    base consultável. As contagens são feitas sobre o conjunto bruto, agregado
+    por titular, indicativo, tipo de estação, classe e estado.
+  </p>
+  <p>
+    Identificação técnica desta versão:
+  </p>
+  <dl>
+    <dt>Registros</dt><dd id="m-registros">—</dd>
+    <dt>Gerado em</dt><dd id="m-gerado">—</dd>
+    <dt>Origem do CSV</dt><dd id="m-arquivo">—</dd>
+    <dt>Verificação do arquivo (SHA-256)</dt><dd id="m-hash">—</dd>
+    <dt>Versão do formato</dt><dd id="m-schema">—</dd>
+  </dl>
+
+  <h3>Licença e uso</h3>
+  <p>
+    Os dados são públicos, publicados pelo governo federal, e podem ser
+    reutilizados com atribuição à fonte, nos termos do Decreto nº 8.777/2016,
+    que institui a Política de Dados Abertos do Poder Executivo Federal.
+  </p>
+  <p>
+    Este aplicativo é oferecido como ferramenta de consulta. As informações
+    refletem a base publicada pela Anatel na data indicada acima e não
+    substituem a consulta oficial nem a orientação da Agência.
+  </p>
+  <p class="aviso-legal">
+    Este programa não se conecta à internet ao consultar. Nenhum dado do usuário
+    é coletado, enviado ou armazenado fora do seu próprio computador.
+  </p>
+</section>
+
+</main>
+
+<footer class="rodape">
+  <p><strong>Radioamadores do Brasil</strong> — consulta de estações licenciadas.</p>
+  <p>Desenvolvido por Melhym Pereira Quemel (PY1MEL) — mpquemel@gmail.com</p>
+  <p>Dados: Anatel, dados abertos do governo federal.</p>
+</footer>
+</div>
+
+<!-- ============================================================
+     DADOS: carregados por <script>, porque fetch() em file://
+     e bloqueado por CORS nos navegadores atuais.
+     Se dados.js nao existir, use a secao "Atualizar base".
+     ============================================================ -->
+<script src="dados.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var D = window.DADOS || null;
+
+  var elInd = document.getElementById("f-indicativo");
+  var elNome = document.getElementById("f-nome");
+  var elFistel = document.getElementById("f-fistel");
+  var elDoc = document.getElementById("f-doc");
+  var elUf = document.getElementById("f-uf");
+  var elMun = document.getElementById("f-municipio");
+  var elTipo = document.getElementById("f-tipo");
+  var elClasse = document.getElementById("f-classe");
+  var elStatus = document.getElementById("f-status");
+  var elAnuncio = document.getElementById("anuncio");
+  var elArea = document.getElementById("area-resultados");
+  var elLista = document.getElementById("lista-resultados");
+  var elTituloRes = document.getElementById("titulo-resultados");
+  var elExportar = document.getElementById("btn-exportar");
+  var elRelatorio = document.getElementById("btn-relatorio");
+  var btnLimpar = document.getElementById("btn-limpar");
+  var form = document.getElementById("form-busca");
+
+  var ultimosResultados = [];
+  var totalBase = 0;
+
+  /* ---------- utilidades ---------- */
+  function semAcento(t) {
+    if (!t) return "";
+    return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+            .replace(/\s+/g, " ").trim();
+  }
+  function soDigitos(t) { return (t || "").replace(/\D+/g, ""); }
+
+  function anunciar(msg, erro) {
+    elAnuncio.textContent = msg;
+    if (erro) { elAnuncio.classList.add("erro"); }
+    else { elAnuncio.classList.remove("erro"); }
+  }
+
+  function criar(tag, texto, classe) {
+    var e = document.createElement(tag);
+    if (texto !== undefined && texto !== null) e.textContent = texto;
+    if (classe) e.className = classe;
+    return e;
+  }
+
+  function valorOuVazio(v) {
+    var t = (v || "").trim();
+    return t ? t : null;
+  }
+
+  /* ---------- dicionarios ---------- */
+  function nomeTipo(i) { return (D.tipos[i] || "").trim(); }
+  function nomeClasse(i) { return (D.classes[i] || "").trim(); }
+  function nomeStatus(i) { return (D.status[i] || "").trim(); }
+  function nomeUf(i) { return D.ufs[i] || ""; }
+  function nomeMunicipio(i) {
+    var m = D.mun[i] || "";
+    var p = m.split("\u001f");
+    return p[0] || "";
+  }
+
+  /* ---------- preencher selects ---------- */
+  /* Compara dois textos em portugues com Intl.Collator.
+     Ordem alfabetica de verdade: "Aca" antes de "Acu", "Água" junto de "Agua". */
+  var colador = new Intl.Collator("pt-BR", { sensitivity: "base" });
+
+  /* N/I e "nao informada" vao sempre para o fim da lista:
+     nunca e a opcao que alguem quer escolher primeiro. */
+  function ehNaoInformado(nome) {
+    var n = semAcento(String(nome || "")).toLowerCase();
+    return n === "n/i" || n.indexOf("nao informad") === 0 ||
+           n === "" || n === "n/a";
+  }
+
+  function preencherSelects() {
+    var i;
+    /* UF: indices ordenados pelo nome, nao pela ordem de descoberta no CSV */
+    var idxUf = [];
+    for (i = 0; i < D.ufs.length; i++) {
+      if (D.ufs[i]) idxUf.push(i);
+    }
+    idxUf.sort(function (a, b) { return colador.compare(D.ufs[a], D.ufs[b]); });
+    for (i = 0; i < idxUf.length; i++) {
+      var o = criar("option", D.ufs[idxUf[i]]);
+      o.value = String(idxUf[i]);
+      elUf.appendChild(o);
+    }
+    var tiposUsados = {};
+    var classesUsadas = {};
+    var statusUsados = {};
+    for (i = 0; i < D.reg.length; i++) {
+      tiposUsados[D.reg[i][5]] = true;
+      classesUsadas[D.reg[i][6]] = true;
+      statusUsados[D.reg[i][12]] = true;
+    }
+    function ordenarChaves(usados, nomeador) {
+      var arr = Object.keys(usados).filter(function (k) {
+        return nomeador(k).trim() !== "";
+      });
+      arr.sort(function (a, b) {
+        var na = nomeador(a).trim(), nb = nomeador(b).trim();
+        var via = ehNaoInformado(na), vib = ehNaoInformado(nb);
+        if (via !== vib) return via ? 1 : -1;   /* nao informado por ultimo */
+        return colador.compare(na, nb);
+      });
+      return arr;
+    }
+    ordenarChaves(tiposUsados, nomeTipo).forEach(function (k) {
+      var o2 = criar("option", nomeTipo(k).trim()); o2.value = k;
+      elTipo.appendChild(o2);
+    });
+    ordenarChaves(classesUsadas, nomeClasse).forEach(function (k) {
+      var o2 = criar("option", nomeClasse(k).trim()); o2.value = k;
+      elClasse.appendChild(o2);
+    });
+    ordenarChaves(statusUsados, nomeStatus).forEach(function (k) {
+      var o2 = criar("option", nomeStatus(k).trim()); o2.value = k;
+      elStatus.appendChild(o2);
+    });
+  }
+
+  /* ---------- busca ---------- */
+  function buscar() {
+    if (!D) {
+      anunciar("A base de dados não foi carregada. Veja a seção Atualizar base.", true);
+      return;
+    }
+    /* aria-busy: o leitor de tela anuncia que a busca esta em andamento
+       em vez de ficar em silencio enquanto os 71.328 registros sao varridos. */
+    var regiao = document.getElementById("resultados");
+    if (regiao) regiao.setAttribute("aria-busy", "true");
+    var ind = semAcento(elInd.value).replace(/\s+/g, "").toUpperCase();
+    var nome = semAcento(elNome.value);
+    var fistel = soDigitos(elFistel.value);
+    var doc = soDigitos(elDoc.value);
+    var uf = elUf.value;
+    var mun = semAcento(elMun.value);
+    var tipo = elTipo.value;
+    var classe = elClasse.value;
+    var status = elStatus.value;
+
+    if (!ind && !nome && !fistel && !doc && !uf && !mun && !tipo && !classe && !status) {
+      anunciar("Informe pelo menos um campo para buscar.", true);
+      return;
+    }
+
+    var res = [];
+    var i, r;
+    for (i = 0; i < D.reg.length; i++) {
+      r = D.reg[i];
+      if (ind && r[0] !== ind) continue;
+      if (fistel && r[4] !== fistel) continue;
+      if (doc && r[2].indexOf(doc) === -1) continue;
+      if (uf && String(r[8]) !== uf) continue;
+      if (tipo && String(r[5]) !== tipo) continue;
+      if (classe && String(r[6]) !== classe) continue;
+      if (status && String(r[12]) !== status) continue;
+      if (nome && semAcento(r[1]).indexOf(nome) === -1) continue;
+      if (mun && semAcento(nomeMunicipio(r[7])).indexOf(mun) === -1) continue;
+      res.push(r);
+    }
+
+    ultimosResultados = res;
+    renderizar(res);
+  }
+
+  function renderizar(res) {
+    elLista.textContent = "";
+
+    if (res.length === 0) {
+      elArea.classList.remove("oculto");
+      elTituloRes.textContent = "Resultados";
+      elExportar.disabled = true;
+      elRelatorio.disabled = true;
+      var v = criar("p",
+        "Nenhuma estação encontrada com esses filtros. Confira a grafia do " +
+        "nome, tente só o primeiro nome, ou busque pelo indicativo.", "vazio");
+      elLista.appendChild(v);
+      anunciar("Nenhum resultado encontrado.");
+      elTituloRes.focus();
+      return;
+    }
+
+    elArea.classList.remove("oculto");
+    elExportar.disabled = false;
+    elRelatorio.disabled = false;
+
+    var LIMITE = 50;
+    var mostrados = Math.min(res.length, LIMITE);
+    elTituloRes.textContent = res.length === 1
+      ? "Resultado da busca: 1 estação"
+      : "Resultados da busca: " + res.length + " estações";
+
+    if (res.length > LIMITE) {
+      elLista.appendChild(criar("p",
+        "Mostrando as primeiras " + LIMITE + " de " + res.length +
+        " estações. Use Exportar CSV para receber todas.", "ajuda"));
+    }
+
+    for (var i = 0; i < mostrados; i++) {
+      elLista.appendChild(blocoEstacao(res[i], i + 1, mostrados));
+    }
+
+    if (regiao) regiao.setAttribute("aria-busy", "false");
+    anunciar(res.length + (res.length === 1
+      ? " resultado encontrado." : " resultados encontrados."));
+    elTituloRes.focus();
+  }
+
+  function blocoEstacao(r, n, total) {
+    var art = criar("article", null, "resultado");
+    art.setAttribute("aria-label", "Resultado " + n + " de " + total);
+
+    var h = criar("h3", (r[0] || "Sem indicativo") + " — " + r[1]);
+    art.appendChild(h);
+
+    var dl = criar("dl");
+    function add(rot, val, classe) {
+      dl.appendChild(criar("dt", rot));
+      var dd = criar("dd", valorOuVazio(val) || "não informado");
+      if (classe) dd.className = classe;
+      if (!valorOuVazio(val)) dd.className = "vazio";
+      dl.appendChild(dd);
+    }
+
+    add("Indicativo", r[0]);
+    add("Nome", r[1]);
+    add("Documento", r[2]);
+    add("Tipo de pessoa", r[3]);
+    add("Fistel", r[4], "fistel");
+    add("Tipo de estação", nomeTipo(r[5]));
+    add("Classe", nomeClasse(r[6]));
+    add("Município", nomeMunicipio(r[7]));
+    add("Estado", nomeUf(r[8]));
+    add("Primeiro licenciamento", r[9]);
+    add("Último licenciamento", r[10]);
+    add("Validade", r[11]);
+    add("Situação", nomeStatus(r[12]));
+    add("Número da estação", r[13]);
+
+    art.appendChild(dl);
+    return art;
+  }
+
+  /* ---------- exportação ---------- */
+  function baixarArquivo(nome, conteudo, tipo) {
+    var blob = new Blob([conteudo], { type: tipo || "text/csv;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+
+  /* Blindagem contra injecao de formula em planilha (OWASP CSV Injection).
+     Um campo iniciado por = + - @ e interpretado como formula pelo Excel e
+     pelo LibreOffice e pode executar comando ao abrir o arquivo. Prefixamos
+     com apostrofo, que a planilha trata como texto literal. */
+  function csvSeguro(v) {
+    var t = String(v === undefined || v === null ? "" : v);
+    t = t.replace(/;/g, ",").replace(/[\r\n]/g, " ");
+    if (/^[=+\-@\t]/.test(t)) t = "'" + t;
+    return t;
+  }
+
+  function exportarCSV() {
+    if (!ultimosResultados.length) return;
+    var linhas = ["Indicativo;Nome;Documento;Tipo de pessoa;Fistel;Tipo de estacao;" +
+                  "Classe;Municipio;Estado;Primeiro licenciamento;" +
+                  "Ultimo licenciamento;Validade;Situacao;Numero da estacao"];
+    for (var i = 0; i < ultimosResultados.length; i++) {
+      var r = ultimosResultados[i];
+      linhas.push([r[0], r[1], r[2], r[3], r[4], nomeTipo(r[5]), nomeClasse(r[6]),
+                   nomeMunicipio(r[7]), nomeUf(r[8]), r[9], r[10], r[11],
+                   nomeStatus(r[12]), r[13]]
+        .map(function (v) { return csvSeguro(v); })
+        .join(";"));
+    }
+    var hoje = new Date().toISOString().slice(0, 10);
+    baixarArquivo("radioamadores-" + hoje + ".csv",
+                  "\ufeff" + linhas.join("\r\n"), "text/csv;charset=utf-8");
+    anunciar("Arquivo CSV gerado com " + ultimosResultados.length + " registros.");
+  }
+
+  function gerarRelatorio() {
+    if (!ultimosResultados.length) return;
+    var res = ultimosResultados;
+    var porTipo = {}, porClasse = {}, porUf = {}, docs = {};
+    var i, r;
+    for (i = 0; i < res.length; i++) {
+      r = res[i];
+      var t = nomeTipo(r[5]) || "não informado";
+      var c = nomeClasse(r[6]) || "não informada";
+      var u = nomeUf(r[8]) || "—";
+      porTipo[t] = (porTipo[t] || 0) + 1;
+      porClasse[c] = (porClasse[c] || 0) + 1;
+      porUf[u] = (porUf[u] || 0) + 1;
+      docs[r[2]] = true;
+    }
+    function ordenado(obj) {
+      return Object.keys(obj).sort(function (a, b) { return obj[b] - obj[a]; });
+    }
+    var L = [];
+    L.push("RELATÓRIO DE CONSULTA — RADIOAMADORES DO BRASIL");
+    L.push("Gerado em: " + new Date().toLocaleString("pt-BR"));
+    L.push("");
+    L.push("Filtros aplicados:");
+    var filtros = [];
+    if (elInd.value) filtros.push("indicativo: " + elInd.value);
+    if (elNome.value) filtros.push("nome: " + elNome.value);
+    if (elFistel.value) filtros.push("fistel: " + elFistel.value);
+    if (elDoc.value) filtros.push("documento: " + elDoc.value);
+    if (elMun.value) filtros.push("município: " + elMun.value);
+    if (elUf.value) filtros.push("estado: " + D.ufs[elUf.value]);
+    if (elTipo.value) filtros.push("tipo: " + nomeTipo(elTipo.value));
+    if (elClasse.value) filtros.push("classe: " + nomeClasse(elClasse.value));
+    if (elStatus.value) filtros.push("situação: " + nomeStatus(elStatus.value));
+    L.push(filtros.length ? filtros.join("; ") : "nenhum");
+    L.push("");
+    L.push("Estações encontradas: " + res.length);
+    L.push("Titulares distintos: " + Object.keys(docs).length);
+    L.push("");
+    L.push("Por tipo de estação:");
+    ordenado(porTipo).forEach(function (k) { L.push("  " + k + ": " + porTipo[k]); });
+    L.push("");
+    L.push("Por classe:");
+    ordenado(porClasse).forEach(function (k) { L.push("  " + k + ": " + porClasse[k]); });
+    L.push("");
+    L.push("Por estado:");
+    ordenado(porUf).forEach(function (k) { L.push("  " + k + ": " + porUf[k]); });
+    L.push("");
+    L.push("Fonte: Anatel — dados abertos — base de " + (D.meta.total) + " estações.");
+    L.push("Aplicativo: Melhym Pereira Quemel (PY1MEL) — mpquemel@gmail.com");
+    var hoje = new Date().toISOString().slice(0, 10);
+    baixarArquivo("relatorio-" + hoje + ".txt", L.join("\r\n"), "text/plain;charset=utf-8");
+    anunciar("Relatório gerado.");
+  }
+
+  /* ---------- limpar ---------- */
+  function limpar() {
+    form.reset();
+    elArea.classList.add("oculto");
+    elLista.textContent = "";
+    ultimosResultados = [];
+    anunciar("Filtros limpos. Pronto para nova busca.");
+    elInd.focus();
+  }
+
+  /* ---------- inicializacao ---------- */
+  function infoBase() {
+    document.getElementById("total-base").textContent =
+      D.meta.total.toLocaleString("pt-BR") + " estações";
+    document.getElementById("data-base").textContent = D.meta.gerado_em;
+    document.getElementById("m-registros").textContent =
+      D.meta.total.toLocaleString("pt-BR");
+    document.getElementById("m-gerado").textContent = D.meta.gerado_em;
+    document.getElementById("m-arquivo").textContent = D.meta.fonte_arquivo || "—";
+    document.getElementById("m-schema").textContent = "v" + D.meta.schema;
+    var h = D.meta.csv_sha256 || "";
+    document.getElementById("m-hash").textContent =
+      h ? h.slice(0, 16) + "… (hash completo no arquivo de dados)" : "—";
+  }
+
+  function iniciar() {
+    if (!D || !D.reg) {
+      document.getElementById("total-base").textContent = "base não carregada";
+      anunciar("A base de dados não foi carregada. " +
+               "Use a seção Atualizar base para carregar um arquivo da Anatel.", true);
+      return;
+    }
+    totalBase = D.reg.length;
+    preencherSelects();
+    infoBase();
+    anunciar("Base carregada com " + totalBase.toLocaleString("pt-BR") +
+             " estações. Pronto para buscar.");
+  }
+
+  form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var t0 = performance.now();
+    buscar();
+    var ms = Math.round(performance.now() - t0);
+    if (ms > 1500) {
+      // apenas informativo em bases grandes; nao polui a anunciacao principal
+      console.info("busca em " + ms + " ms");
+    }
+  });
+
+  btnLimpar.addEventListener("click", limpar);
+  elExportar.addEventListener("click", exportarCSV);
+  elRelatorio.addEventListener("click", gerarRelatorio);
+
+  /* ---------- atualizacao por arquivo (ZIP da Anatel) ---------- */
+  var elArquivoAtual = document.getElementById("f-arquivo");
+  var elAnuncioAtu = document.getElementById("anuncio-atualizacao");
+
+  if ("showSaveFilePicker" in window) {
+    document.getElementById("aviso-persistencia").textContent =
+      "Seu navegador permite salvar a base atualizada neste computador. " +
+      "Nos demais navegadores, a atualização vale somente para esta sessão.";
+  } else {
+    document.getElementById("aviso-persistencia").textContent =
+      "Neste navegador, a atualização vale somente para esta sessão. " +
+      "Para manter, gere dados.js com o script auxiliar.";
+  }
+
+  function anunciarAtu(msg, erro) {
+    elAnuncioAtu.textContent = msg;
+    elAnuncioAtu.classList.toggle("erro", !!erro);
+  }
+
+  function extrairDoZip(buf) {
+    // Le o Diretorio Central do ZIP e descomprime Estacoes_Radioamador.csv
+    var u8 = new Uint8Array(buf);
+    var dv = new DataView(buf);
+    // localiza End Of Central Directory
+    var eocd = -1;
+    for (var i = u8.length - 22; i >= Math.max(0, u8.length - 66000); i--) {
+      if (u8[i] === 0x50 && u8[i + 1] === 0x4b && u8[i + 2] === 0x05 && u8[i + 3] === 0x06) {
+        eocd = i; break;
+      }
+    }
+    if (eocd < 0) throw new Error("Arquivo não parece ser um ZIP válido.");
+    var totalEntradas = dv.getUint16(eocd + 10, true);
+    /* Guarda contra ZIP64: os campos de tamanho e deslocamento de 32 bits
+       recebem 0xFFFFFFFF quando o ZIP64 esta em uso, e o valor real fica num
+       registro extra. Este leitor nao implementa o registro extra, entao
+       falhamos com mensagem clara em vez de ler 4.294.967.295 como tamanho. */
+    function conferirZip64(valor, oQue) {
+      if (valor === 0xFFFFFFFF) {
+        throw new Error("Este pacote usa o formato ZIP64 (" + oQue +
+          "), que esta versao do aplicativo nao le. " +
+          "Baixe o pacote no site da Anatel novamente ou uma versao mais " +
+          "recente deste programa.");
+      }
+      return valor;
+    }
+    var posCD = dv.getUint32(eocd + 16, true);
+    var entradas = [];
+    for (var n = 0; n < totalEntradas; n++) {
+      if (dv.getUint32(posCD, true) !== 0x02014b50) break;
+      var metodo = dv.getUint16(posCD + 10, true);
+      var tamComp = conferirZip64(dv.getUint32(posCD + 20, true), "tamanho comprimido");
+      var tamDescomp = conferirZip64(dv.getUint32(posCD + 24, true), "tamanho descomprimido");
+      var nLen = dv.getUint16(posCD + 28, true);
+      var eLen = dv.getUint16(posCD + 30, true);
+      var cLen = dv.getUint16(posCD + 32, true);
+      var offLocal = conferirZip64(dv.getUint32(posCD + 42, true), "deslocamento");
+      var nome = new TextDecoder("utf-8").decode(
+        u8.subarray(posCD + 46, posCD + 46 + nLen));
+      entradas.push({ nome: nome, metodo: metodo, tamComp: tamComp,
+                      tamDescomp: tamDescomp, offLocal: offLocal });
+      posCD += 46 + nLen + eLen + cLen;
+    }
+    var alvo = null;
+    for (var k = 0; k < entradas.length; k++) {
+      if (/Estacoes_Radioamador\.csv$/i.test(entradas[k].nome)) { alvo = entradas[k]; break; }
+    }
+    if (!alvo) throw new Error("O arquivo enviado não contém Estacoes_Radioamador.csv.");
+    // cabecalho local
+    var p = alvo.offLocal;
+    var nLen2 = dv.getUint16(p + 26, true);
+    var eLen2 = dv.getUint16(p + 28, true);
+    var inicio = p + 30 + nLen2 + eLen2;
+    var comprimido = u8.slice(inicio, inicio + alvo.tamComp);
+    if (alvo.metodo === 0) return Promise.resolve(comprimido.buffer);
+    if (alvo.metodo === 8) {
+      if (typeof DecompressionStream === "undefined")
+        return Promise.reject(new Error("Seu navegador não descomprime ZIP. Use Chrome, Edge ou Safari recente."));
+      var ds = new DecompressionStream("deflate-raw");
+      var stream = new Blob([comprimido]).stream().pipeThrough(ds);
+      return new Response(stream).arrayBuffer();
+    }
+    return Promise.reject(new Error("Método de compressão não suportado: " + alvo.metodo));
+  }
+
+  function parseCSV(texto) {
+    // parser simples com suporte a aspas
+    var linhas = [];
+    var campo = "", linha = [], dentro = false;
+    for (var i = 0; i < texto.length; i++) {
+      var ch = texto[i];
+      if (dentro) {
+        if (ch === '"') {
+          if (texto[i + 1] === '"') { campo += '"'; i++; }
+          else dentro = false;
+        } else campo += ch;
+      } else {
+        if (ch === '"') dentro = true;
+        else if (ch === ";") { linha.push(campo); campo = ""; }
+        else if (ch === "\n") { linha.push(campo); linhas.push(linha); linha = []; campo = ""; }
+        else if (ch === "\r") { /* ignora */ }
+        else campo += ch;
+      }
+    }
+    if (campo.length || linha.length) { linha.push(campo); linhas.push(linha); }
+    return linhas;
+  }
+
+  function reconstruirDados(texto) {
+    if (texto.charCodeAt(0) === 0xFEFF) texto = texto.slice(1);
+    var linhas = parseCSV(texto);
+    if (linhas.length < 2) throw new Error("CSV vazio ou inválido.");
+    var cab = linhas[0];
+    function col(nome) {
+      for (var i = 0; i < cab.length; i++)
+        if (cab[i].trim() === nome) return i;
+      return -1;
+    }
+    var iInd = col("Indicativo"), iNome = col("Nome da Entidade"),
+        iDoc = col("CNPJ ou CPF"), iTipoDoc = col("Tipo de Identificação"),
+        iFistel = col("Fistel do Serviço da Estação"),
+        iTipo = col("Tipo de Estação"), iClasse = col("COER"),
+        iMun = col("Município da Estação"), iUf = col("UF da Entidade"),
+        iPri = col("Data do Primeiro Licenciamento"),
+        iUlt = col("Data do Último Licenciamento"),
+        iVal = col("Data de Validade da Estação"),
+        iSt = col("Status da Validade"),
+        iNum = col("Número da Estação");
+    if (iInd < 0 || iNum < 0)
+      throw new Error("Colunas esperadas não encontradas no CSV.");
+
+    var ufs = [], tipos = [], classes = [], status = [], mun = [];
+    var iuf = {}, itp = {}, icl = {}, ist = {}, imu = {};
+    function add(dic, arr, v) {
+      if (!(v in dic)) { dic[v] = arr.length; arr.push(v); }
+      return dic[v];
+    }
+    var reg = [];
+    for (var l = 1; l < linhas.length; l++) {
+      var r = linhas[l];
+      if (!r || r.length < 5) continue;
+      function g(ix) { return ix >= 0 ? (r[ix] || "").trim() : ""; }
+      var uf = g(iUf), m = g(iMun);
+      var chaveMun = (m === "N/A" || m === "N/I" || m === "") ? "" : m + "\u001f" + uf;
+      reg.push([
+        g(iInd).toUpperCase(), g(iNome), g(iDoc), g(iTipoDoc), g(iFistel),
+        add(itp, tipos, g(iTipo)), add(icl, classes, g(iClasse)),
+        add(imu, mun, chaveMun), add(iuf, ufs, uf),
+        g(iPri), g(iUlt), g(iVal), add(ist, status, g(iSt)), g(iNum)
+      ]);
+    }
+    return {
+      meta: { gerado_em: "arquivo carregado pelo usuário", total: reg.length,
+              schema: 1, fonte_arquivo: "Estacoes_Radioamador.csv (carregado manualmente)",
+              csv_sha256: "", fonte_url: "" },
+      ufs: ufs, tipos: tipos, classes: classes, status: status, mun: mun, reg: reg
+    };
+  }
+
+  elArquivoAtual.addEventListener("change", function () {
+    var f = elArquivoAtual.files && elArquivoAtual.files[0];
+    if (!f) return;
+    anunciarAtu("Lendo " + f.name + " (" + (f.size / 1e6).toFixed(1) + " MB)…");
+    f.arrayBuffer().then(function (buf) {
+      anunciarAtu("Extraindo os dados de radioamador do arquivo…");
+      return extrairDoZip(buf);
+    }).then(function (csvBuf) {
+      anunciarAtu("Processando os registros…");
+      var texto = new TextDecoder("utf-8").decode(new Uint8Array(csvBuf));
+      var novo = reconstruirDados(texto);
+      D = novo;
+      // repopular selects
+      elUf.length = 1; elTipo.length = 1; elClasse.length = 1; elStatus.length = 1;
+      preencherSelects(); infoBase();
+      anunciarAtu("Base atualizada: " + novo.reg.length.toLocaleString("pt-BR") +
+        " estações carregadas do arquivo. A consulta já usa os dados novos.");
+      anunciar("Base atualizada com " + novo.reg.length.toLocaleString("pt-BR") +
+        " estações.");
+    }).catch(function (e) {
+      anunciarAtu("Não foi possível ler o arquivo: " + e.message +
+        " Baixe novamente o arquivo oficial da Anatel e tente outra vez.", true);
+    });
+  });
+
+  /* ---------- inicio ---------- */
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", iniciar);
+  } else {
+    iniciar();
+  }
+})();
+</script>
+</body>
+</html>

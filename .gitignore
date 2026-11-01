@@ -1,0 +1,17 @@
+# Pastas e arquivos que NAO entram no controle de versao
+
+# Base bruta da Anatel: 305 MB, baixavel de novo pelo atualizar_base.py
+dados/
+
+# Prototipos e experimentos de investigacao
+prototipos/
+
+# Relatorios de revisao por IA (nao publicar)
+revisao/
+
+# Lixo de sistema e editores
+__pycache__/
+*.pyc
+.DS_Store
+*~
+*.bak-*
