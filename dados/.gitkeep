@@ -1,0 +1,3 @@
+Esta pasta guarda os arquivos baixados da Anatel.
+Eles nao sao versionados porque passam de 300 MB.
+Rode: python3 scripts/atualizar_base.py

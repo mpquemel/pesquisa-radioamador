@@ -1,0 +1,19 @@
+# Dados baixados da Anatel (grandes, nao versionados)
+dados/*.zip
+dados/*.csv
+dados/*.db
+dados/*.xlsx
+dados/*.json
+
+# Base gerada para o app web. Vai nos Releases, nao no historico do Git.
+# Gere com: python3 scripts/gerar_dados_js.py
+web/dados.js
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Sistema
+.DS_Store
+Thumbs.db
