@@ -222,3 +222,142 @@ A coluna "UF da Estação" contém, além das 27 siglas:
 O `normalizar_uf()` do gerador aceita sigla em qualquer caixa e nome de estado
 por extenso. O que não reconhece (`N/A`, `N/I`, vazio) fica fora do dicionário,
 porque não é UF — não se inventa estado para preencher campo.
+
+---
+
+## 10. Lição registrada em 01/11/2026 — ZIP64 só existe no arquivo que se mede
+
+**O que aconteceu.** O leitor de ZIP do navegador tinha uma guarda contra
+ZIP64 escrita na mesma sessão em que eu medi o pacote da Anatel e concluí:
+"nenhuma entrada usa ZIP64". A medição estava correta — para *aquele* arquivo.
+Horas depois o Melhym baixou o pacote de novo, do servidor da Anatel, e o app
+recusou com a mensagem da guarda.
+
+**Por que o arquivo mudou.** O pacote oficial passou a incluir dois CSVs
+gigantes: `Estacoes_Mosaico_STEL.csv` (5.278.660.441 bytes) e
+`Estacoes_SLP.csv` (5.118.867.810 bytes). Ambos passam do limite de 4 GB do
+formato clássico, o que força o ZIP **inteiro** ao formato de 64 bits. O
+`Estacoes_Radioamador.csv`, que é o que interessa, tem apenas 11.888.045 bytes.
+
+**Os dois arquivos medidos.**
+
+| Arquivo | Bytes do ZIP | SHA-256 do pacote |
+|---|---|---|
+| `dados/` (31/10 19:49) | 224.894.007 | `c1a5cb8f…` |
+| `Downloads/` (01/11 13:16) | 224.891.060 | `2600c966…` |
+
+Pacotes diferentes, com **o mesmo conteúdo de radioamador**: o CSV extraído de
+ambos tem 11.888.045 bytes e SHA-256 `a0b44a5c…`. Mudou o empacotamento, não o
+dado.
+
+**Regra que fica.** Medir um arquivo publicado por terceiro não autoriza
+afirmar nada sobre a próxima versão dele. Anatel republica o mesmo dado em
+embalagem nova sem avisar. Toda conclusão sobre formato tem de carregar a data
+e o hash do arquivo medido, para que a próxima sessão saiba do que ela fala.
+
+**Corolário operacional.** A guarda de ZIP64 que eu chamei de "blindagem
+hipotética" foi o que impediu o app de ler 4.294.967.295 como tamanho e
+produzir lixo. Guarda que avisa é melhor que parser que adivinha. Mas guarda
+que substitui solução é melhor ainda: a resposta correta era implementar
+ZIP64, não apenas recusar.
+
+---
+
+## 11. Leitor ZIP64 do navegador — o que foi implementado e como foi provado
+
+**Algoritmo**, em `extrairDoZip()` no `web/index.html`:
+
+1. Localiza o EOCD (`0x06054b50`) varrendo os últimos 66 KB do arquivo.
+2. Se os campos de 32 bits estiverem saturados, procura 20 bytes antes do
+   EOCD o **ZIP64 End of Central Directory Locator** (`0x07064b50`) e, no
+   deslocamento que ele aponta, o registro **ZIP64 EOCD** (`0x06064b50`), de
+   onde vêm o total real de entradas e o deslocamento real do diretório
+   central, ambos em 64 bits.
+3. No diretório central, cada entrada saturada tem o campo extra `0x0001`,
+   lido na ordem: tamanho descomprimido, tamanho comprimido, deslocamento.
+4. A guarda antiga continua, mas só dispara quando o valor realmente não pode
+   ser resolvido.
+
+**Prova, não afirmação.** O teste compara o resultado do leitor do navegador,
+executado no Node, com a biblioteca `zipfile` do Python, sobre o pacote real
+de 225 MB:
+
+    arquivo: estacoes_licenciadas.zip 224.9 MB
+    bytes extraidos: 11886045
+    sha256         : a0b44a5c1687c2646caf40c5a5410493aaf32835dcb7ace07780dc4c0180e776
+    OK  bate com o oraculo do Python
+
+Hash idêntico ao do oráculo. É o critério observável que faltava: não "extraiu
+algo", mas "extraiu exatamente o mesmo que a ferramenta de referência".
+
+---
+
+## 12. Atualização da base pelo navegador
+
+**Por que IndexedDB e não localStorage.** O `dados.js` tem 9,8 MB. O
+`localStorage` costuma limitar a 5 MB e recusa em silêncio. O IndexedDB não
+estoura e funciona em `file://`.
+
+**O que a atualização faz:**
+
+- extrai o CSV do pacote (`extrairDoZip`)
+- calcula o **SHA-256 no próprio navegador** com `crypto.subtle`, o mesmo
+  hash que o Python calcula, para que os dois lados acertem ou falhem juntos
+- reconstrói a base com o **mesmo critério do gerador**: UF da Estação e
+  frequência das repetidoras
+- identifica arquivo **idêntico pelo hash** e diz "nada foi alterado" em vez
+  de fingir atualização
+- guarda em IndexedDB e mostra data/hash no **topo** da página
+- permite baixar o `dados.js` regenerado e voltar à base original
+
+**O defeito que isso consertou.** O `reconstruirDados()` do navegador estava
+duas versões atrás do gerador: usava UF da Entidade e não calculava
+frequência. Quem atualizasse pelo botão perderia a correção de UF e o campo
+novo, sem aviso — enquanto quem não atualizasse continuaria correto. Bug que
+depende de quem usa é pior que bug único.
+
+---
+
+## 13. Estado de publicação em 01/11/2026
+
+| Release | Situação |
+|---|---|
+| `v1.0` | primeira publicação, contém o bug de UF. Não usar |
+| `v1.1` | publicada por engano de madrugada, incompleta. Texto avisa para não usar |
+| `v1.2` | **atual**. Repetidoras com frequência, cartão pessoal, ZIP64, atualização |
+
+ZIP da v1.2: 3.098.779 bytes,
+`sha256 7649d77833c3b1a49290c35bf978b5cc3486df18540437a608539657a9a82e14`,
+com 4 arquivos (`index.html` 79.173 · `dados.js` 9.807.801 · `README.md` ·
+`LICENCA.md`).
+
+**O que fica fora do Git, de propósito:** `dados/` (305 MB brutos,
+rebaixáveis), `prototipos/`, `revisao/`, `__pycache__/`.
+
+---
+
+## 14. Número confirmado pelo `--check` (01/11/2026)
+
+    dados.js : 9,804,238 bytes, 71,328 registros
+    CSV sha256 atual : a0b44a5c1687c2646caf40c5a5410493aaf32835dcb7ace07780dc4c0180e776
+    OK   hash do CSV confere com o registrado no dados.js
+    OK   total de registros confere
+    OK   todos os municipios apontam para UF existente
+    schema do dados.js: 2
+    repetidoras no CSV: 1,241 | com frequencia no dados.js: 1,233
+    OK   99.4% das repetidoras com frequencia
+
+Distribuição por faixa: 2 m 848 · 70 cm 384 · 1,25 m 39 · 10 m 16 · 6 m 9 ·
+33 cm 4 · 23 cm 3. A soma passa de 1.233 porque as 67 multibanda entram em
+mais de uma faixa.
+
+---
+
+## 15. Pendências abertas em 01/11/2026
+
+1. **Ano de 1988 (autorização original)** — cruzar a base de outorga com a de
+   estações. **Não medido.** Não há número a reportar ainda.
+2. **Base de Rádio do Cidadão** — ainda não localizada como CSV próprio.
+3. **Histórico de renovações** — não existe em aberto; só a data mais recente.
+4. **Mapa de estações** — impossível sem coordenadas na base; quebraria a
+   promessa de funcionar sem internet.
